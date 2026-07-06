@@ -19,7 +19,7 @@ app.post('/optimize', (req, res) => {
   console.log('Received optimization input:', inputData);
 
   latestUserInput = inputData;
-  
+
   const optimizerParams = {
     naturalAngle: inputData.naturalAngle,
     ptorqueExtend: inputData.forces.external || 30.0,
@@ -38,28 +38,29 @@ app.post('/optimize', (req, res) => {
 
     thickness: inputData.thickness
   };
-  
+
   // temp JSON file w params
   const paramsFile = path.join(__dirname, 'optimizer_params.json');
   fs.writeFileSync(paramsFile, JSON.stringify(optimizerParams, null, 2));
-  
-  const cmd = `python3 ${path.join(__dirname, 'run_optimizer.py')} --params ${paramsFile}`;
-  
+
+  const pythonExec = process.env.PYTHON_EXEC || (fs.existsSync(path.join(__dirname, '.venv')) ? path.join(__dirname, '.venv', 'bin', 'python') : 'python3');
+  const cmd = `${pythonExec} ${path.join(__dirname, 'run_optimizer.py')} --params ${paramsFile}`;
+
   exec(cmd, (error, stdout, stderr) => {
     try {
       fs.unlinkSync(paramsFile);
     } catch (err) {
       console.error('Error deleting temporary params file:', err);
     }
-    
+
     if (error) {
       console.error(`Error running optimizer: ${error}`);
       console.error(`Stderr: ${stderr}`);
       return res.status(500).json({ error: 'Error running opt' });
     }
-    
+
     console.log(`Optimizer output: ${stdout}`);
-    
+
     try {
       // read results
       const resultsFile = path.join(__dirname, 'optimization_results.json');
@@ -71,7 +72,7 @@ app.post('/optimize', (req, res) => {
 
         const outputLines = stdout.trim().split('\n');
         const results = {};
-        
+
 
         for (const line of outputLines) {
           if (line.includes('Torque down:')) {
@@ -82,7 +83,7 @@ app.post('/optimize', (req, res) => {
             results.mjcModelFile = line.split(':')[1].trim();
           }
         }
-        
+
         latestResults = results; // store res
         res.json(results);
       }
@@ -96,21 +97,21 @@ app.post('/optimize', (req, res) => {
 // generate mesh from optimizer result endpoint
 app.post('/generate', (req, res) => {
   const { optimizationResults } = req.body;
-  
+
   let combinedParams = {};
-  
+
   try {
     const resultsFilePath = path.join(__dirname, 'optimization_results.json');
     let optimResults = optimizationResults;
-    
+
     if (!optimResults && fs.existsSync(resultsFilePath)) {
       optimResults = JSON.parse(fs.readFileSync(resultsFilePath, 'utf8'));
     }
-    
+
     if (!optimResults) {
       return res.status(400).json({ error: 'No optimization results available' });
     }
-    
+
     const userInput = latestUserInput || (optimResults.dimensions ? {
       dimensions: optimResults.dimensions,
       naturalAngle: optimResults.naturalAngle,
@@ -120,38 +121,38 @@ app.post('/generate', (req, res) => {
         bend: optimResults.atorqueExtend
       }
     } : null);
-    
+
     if (!userInput) {
       return res.status(400).json({ error: 'No user input available' });
     }
-    
+
     combinedParams = {
 
       dimensions: userInput.dimensions,
       naturalAngle: userInput.naturalAngle,
-      
+
 
       ptorqueExtend: userInput.forces.external,
       atorqueBend: userInput.forces.extend,
       atorqueExtend: userInput.forces.bend,
-      
+
       // TODO: again this may be wrong for thickness
       thickness: userInput.thickness || 'medium',
-      
+
       torqueDown: optimResults.torqueDown,
       torqueUp: optimResults.torqueUp,
       geometryValues: optimResults.geometryValues,
       mjcModelFile: optimResults.mjcModelFile,
       torqueCurve: optimResults.torqueCurve
     };
-    
+
     console.log('Combined parameters for mesh generation:', combinedParams);
-    
+
     const blenderParamsFile = path.join(__dirname, 'blender_params.json');
     fs.writeFileSync(blenderParamsFile, JSON.stringify(combinedParams, null, 2));
-    
+
     const cmd = `/Applications/Blender.app/Contents/MacOS/Blender --background --python ${path.join(__dirname, 'createMesh.py')} -- --params ${blenderParamsFile}`;
-    
+
     exec(cmd, (error, stdout, stderr) => {
 
       try {
@@ -159,13 +160,13 @@ app.post('/generate', (req, res) => {
       } catch (err) {
         console.error('Error deleting temporary blender params file:', err);
       }
-      
+
       if (error) {
         console.error(`Error generating mesh: ${error}`);
         console.error(`Stderr: ${stderr}`);
         return res.status(500).json({ error: 'Error generating mesh' });
       }
-      
+
       console.log(stdout);
       res.json({ message: 'Mesh generated successfully' });
     });
@@ -179,45 +180,45 @@ app.post('/generate', (req, res) => {
 app.post('/download-to-folder', (req, res) => {
   try {
     const { filename, targetFolder } = req.body;
-    
+
     console.log('Download request received:', { filename, targetFolder }); // DEBUG
-    
+
     // Ensure the target folder exists
     if (!fs.existsSync(targetFolder)) {
       console.log('Creating target folder:', targetFolder); // DEBUG
       fs.mkdirSync(targetFolder, { recursive: true });
     }
-    
+
     // Construct the full path
     const fullPath = path.join(targetFolder, filename);
-    
+
     // Use the brace.stl file (your generated STL file)
     const sourceFile = path.join(__dirname, 'brace.stl');
-    
+
     console.log('Source file:', sourceFile); // DEBUG
     console.log('Target path:', fullPath); // DEBUG
-    
+
     if (!fs.existsSync(sourceFile)) {
       console.error('Source file does not exist:', sourceFile); // DEBUG
       return res.status(404).json({ error: 'Generated mesh file not found' });
     }
-    
+
     // Copy the file to the target location
     fs.copyFileSync(sourceFile, fullPath);
-    
+
     console.log(`File saved to: ${fullPath}`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       savedPath: fullPath,
       message: `File successfully saved to ${fullPath}`
     });
-    
+
   } catch (error) {
     console.error('Error saving file to folder:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to save file to specified folder',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -247,5 +248,5 @@ app.get('/download', (req, res) => {
   res.download(filePath, 'custom_brace.stl');
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3049;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1,0 +1,16 @@
+{
+  "naturalAngle": 30,
+  "ptorqueExtend": 1,
+  "atorqueBend": 4.2,
+  "atorqueExtend": 5,
+  "d1": 16,
+  "d2": 19,
+  "d3": 19,
+  "w1": 17,
+  "w2": 20,
+  "w3": 19,
+  "l1": 28,
+  "l2": 24,
+  "l3": 22,
+  "thickness": "medium"
+}
