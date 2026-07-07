@@ -24,6 +24,7 @@ wheels/
 evaluation/results/
 evaluation/results2/
 optimizer/results/
+orthosis-website/optimization_results/
 *.gif
 *.mp4
 *.avi

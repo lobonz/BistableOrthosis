@@ -9,9 +9,11 @@ plt.style.use('seaborn-v0_8-whitegrid')
 plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 
-def run_simulation_by_pos(model, data, target_angle, angle_step, nonLinear):
-    # Renderer setup with higher resolution
-    renderer = mujoco.Renderer(model, height=1080, width=1920)  # Full HD resolution
+def run_simulation_by_pos(model, data, target_angle, angle_step, nonLinear, render_frames=False):
+    # Renderer setup with higher resolution (only needed if we're actually
+    # producing an animation - rendering every step at 1080p otherwise burns
+    # huge amounts of CPU/RAM for frames nobody uses)
+    renderer = mujoco.Renderer(model, height=1080, width=1920) if render_frames else None
 
     #get id
     pip_joint = model.joint("PIP")
@@ -81,9 +83,13 @@ def run_simulation_by_pos(model, data, target_angle, angle_step, nonLinear):
         torques.append(torque)
         tendon_lengths.append(data.ten_length[extension_tendon_id]) # == data.ten_length[bend_tendon_id]
 
-        renderer.update_scene(data, camera = model.camera("cam").id)
-        frame = renderer.render()
-        frames.append(frame)
+        if renderer is not None:
+            renderer.update_scene(data, camera = model.camera("cam").id)
+            frame = renderer.render()
+            frames.append(frame)
+
+    if renderer is not None:
+        renderer.close()
 
     np_angles = np.rad2deg(np.array(angles))
     np_forces = np.array(forces)
@@ -94,9 +100,9 @@ def run_simulation_by_pos(model, data, target_angle, angle_step, nonLinear):
     return np_angles, np_forces, np_torques, np_tendon_lengths, np_potential_energy, frames
 
 
-def run_simulation_by_actuator(model, data, target_angle, nonLinear, control_step = 0.001):
-    # Renderer setup
-    renderer = mujoco.Renderer(model, height=480, width=640)
+def run_simulation_by_actuator(model, data, target_angle, nonLinear, control_step = 0.001, render_frames=False):
+    # Renderer setup (only needed if we're actually producing an animation)
+    renderer = mujoco.Renderer(model, height=480, width=640) if render_frames else None
 
     #get id
     pip_joint = model.joint("PIP")
@@ -151,10 +157,13 @@ def run_simulation_by_actuator(model, data, target_angle, nonLinear, control_ste
         tendon_lengths.append(data.ten_length[extension_tendon_id]) # == data.ten_length[bend_tendon_id]
 
         current_angle = data.qpos[hingeBA_id] # update current angle
-        renderer.update_scene(data, camera = model.camera("cam").id)
-        frame = renderer.render()
-        frames.append(frame)
+        if renderer is not None:
+            renderer.update_scene(data, camera = model.camera("cam").id)
+            frame = renderer.render()
+            frames.append(frame)
 
+    if renderer is not None:
+        renderer.close()
 
     np_angles = np.rad2deg(np.array(angles)) #change angle unit to degrees
     np_forces = np.array(forces)
@@ -203,9 +212,9 @@ def simulate(model, nonLinear = 3.0, scaleFactor = 1.0, byPos = True, plot=False
     angle_step = model.opt.timestep
 
     if byPos:
-        np_angles, np_forces, np_torques, np_tendon_lengths, np_potential_energy, frames = run_simulation_by_pos(model, data, target_angle, angle_step, nonLinear)
+        np_angles, np_forces, np_torques, np_tendon_lengths, np_potential_energy, frames = run_simulation_by_pos(model, data, target_angle, angle_step, nonLinear, render_frames=animate)
     else:
-        np_angles, np_forces, np_torques, np_tendon_lengths, np_potential_energy, frames = run_simulation_by_actuator(model, data, target_angle, angle_step, nonLinear)
+        np_angles, np_forces, np_torques, np_tendon_lengths, np_potential_energy, frames = run_simulation_by_actuator(model, data, target_angle, angle_step, nonLinear, render_frames=animate)
 
     # scale factor
     # np_forces = np_forces / 1200

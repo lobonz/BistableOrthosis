@@ -466,129 +466,43 @@ generateBtn.addEventListener('click', async function() {
   }
 });
 
-// downloadBtn.addEventListener('click', async function() {
-//   if (!optimizationResults) {
-//     statusEl.textContent = 'No results available to download';
-//     return;
-//   }
-  
-//   // Get the name from the input field
-//   const nameInput = document.getElementById('fullName');
-//   let userName = nameInput.value.trim();
-  
-//   // If no name provided, use "user" as default
-//   if (!userName) {
-//     userName = 'user';
-//   }
-  
-//   // Clean the name (remove invalid filename characters)
-//   userName = userName.replace(/[<>:"/\\|?*]/g, '_');
-  
-//   // Generate timestamp (YYYY-MM-DD_HH-MM-SS format)
-//   const now = new Date();
-//   const timestamp = now.getFullYear() + '-' + 
-//                    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-//                    String(now.getDate()).padStart(2, '0') + '_' + 
-//                    String(now.getHours()).padStart(2, '0') + '-' + 
-//                    String(now.getMinutes()).padStart(2, '0') + '-' + 
-//                    String(now.getSeconds()).padStart(2, '0');
-  
-//   // Create filename: name_timestamp.stl
-//   const filename = `${userName}_${timestamp}.stl`;
-  
-//   try {
-//     // Send filename to server for saving to specific folder
-//     const response = await fetch('/download-to-folder', {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json'
-//       },
-//       body: JSON.stringify({
-//         filename: filename,
-//         targetFolder: '/Users/yuyulin/Desktop/UIST2025_demo'
-//       })
-//     });
-    
-//     if (response.ok) {
-//       const result = await response.json();
-//       statusEl.textContent = `File saved to: ${result.savedPath}`;
-//     } else {
-//       throw new Error('Server error saving file');
-//     }
-//   } catch (error) {
-//     console.error('Error saving to specific folder:', error);
-//     statusEl.textContent = 'Error saving to folder, falling back to browser download';
-    
-//     // Fallback to regular browser download
-//     const downloadLink = document.createElement('a');
-//     downloadLink.href = '/download';
-//     downloadLink.download = filename;
-//     document.body.appendChild(downloadLink);
-//     downloadLink.click();
-//     document.body.removeChild(downloadLink);
-    
-//     statusEl.textContent = `Downloading ${filename} to Downloads folder`;
-//   }
-// });
-
-
-downloadBtn.addEventListener('click', async function() {
+downloadBtn.addEventListener('click', function() {
   if (!optimizationResults) {
     statusEl.textContent = 'No results available to download';
     return;
   }
-  
+
   // Get the name from the input field
   const nameInput = document.getElementById('fullName');
   let userName = nameInput.value.trim();
-  
+
   // If no name provided, use "user" as default
   if (!userName) {
     userName = 'user';
   }
-  
+
   // Clean the name (remove invalid filename characters)
   userName = userName.replace(/[<>:"/\\|?*]/g, '_');
-  
+
   // Generate timestamp (YYYY-MM-DD_HH-MM-SS format)
   const now = new Date();
-  const timestamp = now.getFullYear() + '-' + 
-                   String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                   String(now.getDate()).padStart(2, '0') + '_' + 
-                   String(now.getHours()).padStart(2, '0') + '-' + 
-                   String(now.getMinutes()).padStart(2, '0') + '-' + 
+  const timestamp = now.getFullYear() + '-' +
+                   String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                   String(now.getDate()).padStart(2, '0') + '_' +
+                   String(now.getHours()).padStart(2, '0') + '-' +
+                   String(now.getMinutes()).padStart(2, '0') + '-' +
                    String(now.getSeconds()).padStart(2, '0');
-  
+
   // Create filename: name_timestamp.stl
   const filename = `${userName}_${timestamp}.stl`;
-  
-  // Show processing status
-  statusEl.textContent = 'Copying file to demo folder...';
-  
-  try {
-    // Send filename to server for copying to specific folder
-    const response = await fetch('/download-to-folder', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        filename: filename,
-        targetFolder: '/Users/yuyulin/Desktop/UIST2025_demo'
-      })
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      statusEl.textContent = `File copied to: ${result.savedPath}`;
-      console.log('File successfully copied to:', result.savedPath);
-    } else {
-      const errorData = await response.json();
-      console.error('Server error:', errorData);
-      statusEl.textContent = `Error: ${errorData.error}`;
-    }
-  } catch (error) {
-    console.error('Error copying file:', error);
-    statusEl.textContent = 'Error copying file to demo folder';
-  }
+
+  // Trigger a normal browser download (goes to the user's Downloads folder)
+  const downloadLink = document.createElement('a');
+  downloadLink.href = `/download?filename=${encodeURIComponent(filename)}`;
+  downloadLink.download = filename;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+
+  statusEl.textContent = `Downloading ${filename}...`;
 });
